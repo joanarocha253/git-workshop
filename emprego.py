@@ -2,6 +2,7 @@ import json
 import requests
 import sys
 import re
+import csv
 from collections import Counter   
 # ============================================================================
 # CONFIGURAÇÕES GLOBAIS
@@ -22,10 +23,12 @@ HEADERS = {
 # ALÍNEA A) - Listar N trabalhos mais recentes
 # ============================================================================
 
-def top(n):
+def top(n, csv_path=None):
     """
     Lista os N trabalhos mais recentes publicados pela itjobs.pt.
-    Exemplo: python emprego.py top 30
+    Exemplo: 
+      python emprego.py top 30
+      python emprego.py top 30 resultados.csv
     """
     url = f"{BASE_URL}/job/list.json"
     params = {"api_key": API_KEY, "limit": n}
@@ -46,6 +49,10 @@ def top(n):
         
         jobs = data.get("results", [])
         print(json.dumps(jobs, ensure_ascii=False, indent=2))
+
+        # Exportar para CSV se o nome do ficheiro foi indicado
+        if csv_path:
+            export_jobs_to_csv(jobs, csv_path)
         
     except requests.RequestException as e:
         print(f"Erro ao conectar à API: {e}")
@@ -59,13 +66,14 @@ def top(n):
 # ALÍNEA B) - Listar trabalhos part-time por empresa e localidade
 # ============================================================================
 
-def search(localidade, empresa, n):
+def search(localidade, empresa, n, csv_path=None):
     """
     Lista trabalhos part-time de uma empresa numa localidade.
-    Exemplo: python emprego.py search Porto "KCS IT" 3
+    Exemplo: 
+      python emprego.py search Porto "KCS IT" 3
+      python emprego.py search Porto "KCS IT" 3 resultados.csv
     """
     url = f"{BASE_URL}/job/search.json"
-    
     
     params = {
         "api_key": API_KEY,
@@ -108,18 +116,21 @@ def search(localidade, empresa, n):
                     if "part" in type_name or "parcial" in type_name:
                         is_part_time = True
                         break
-            
            
             if location_match and is_part_time:
                 filtered_jobs.append(job)
                 if len(filtered_jobs) >= n:
                     break
         
-# resultados
+        # resultados
         if not filtered_jobs:
             print("Nenhum trabalho part-time.")
         else:
             print(json.dumps(filtered_jobs[:n], ensure_ascii=False, indent=2))
+
+        # Exportar para CSV se o nome do ficheiro foi indicado
+        if csv_path and filtered_jobs:
+            export_jobs_to_csv(filtered_jobs[:n], csv_path)
         
     except requests.RequestException as e:
         print(f"Erro ao conectar à API: {e}")
@@ -253,17 +264,73 @@ def skills(data_inicial, data_final):
         print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
+# ============================================================================
+# Alinea E): exportar lista de jobs para CSV
+# ============================================================================
+
+def clean_html(raw_html):
+    """
+    Remove tags HTML de um texto.
+    """
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', raw_html).strip()
+
+def export_jobs_to_csv(jobs, csv_path):
+    """
+    Exporta uma lista de anúncios para CSV com os campos:
+    titulo; empresa; descricao; data_publicacao; salario; localizacao
+    """
+    fieldnames = [
+        "titulo",
+        "empresa",
+        "descricao",
+        "data_publicacao",
+        "salario",
+        "localizacao",
+    ]
+
+    try:
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for job in jobs:
+                titulo = job.get("title", "") or "Sem título"
+                empresa = job.get("company", {}).get("name", "") or "Não especificado"
+                descricao_raw = job.get("body", "") or ""
+                descricao = clean_html(descricao_raw) or "Sem descrição"
+                data_pub = job.get("publishedAt", "") or "Desconhecida"
+                salario = job.get("wage", "") or "Não especificado"
+
+                locs = job.get("locations", []) or []
+                localizacao = ", ".join(loc.get("name", "") for loc in locs) or "Não especificado"
+
+                writer.writerow({
+                    "titulo": titulo,
+                    "empresa": empresa,
+                    "descricao": descricao,
+                    "data_publicacao": data_pub,
+                    "salario": salario,
+                    "localizacao": localizacao,
+                })
+
+        print(f"CSV criado com sucesso: {csv_path}")
+
+    except OSError as e:
+        print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
+
 
 # ============================================================================
 # MAIN - Processamento dos argumentos da linha de comando
 # ============================================================================
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso:")
-        print("  python emprego.py top N")
-        print("  python emprego.py search LOCALIDADE EMPRESA N")
+        print("  python emprego.py top N [FICHEIRO_CSV]")
+        print("  python emprego.py search LOCALIDADE EMPRESA N [FICHEIRO_CSV]")
         print("  python emprego.py type JOB_ID")
-
+        print("  python emprego.py skills dataInicial dataFinal")
         sys.exit(1)
     
     comando = sys.argv[1]
@@ -272,11 +339,12 @@ if __name__ == "__main__":
     if comando == "top":
         if len(sys.argv) < 3:
             print("ERRO: Falta o argumento N")
-            print("Uso: python emprego.py top N")
+            print("Uso: python emprego.py top N [FICHEIRO_CSV]")
             sys.exit(1)
         try:
             n = int(sys.argv[2])
-            top(n)
+            csv_path = sys.argv[3] if len(sys.argv) >= 4 else None
+            top(n, csv_path)
         except ValueError:
             print(f"ERRO: '{sys.argv[2]}' não é um número válido")
             sys.exit(1)
@@ -285,14 +353,15 @@ if __name__ == "__main__":
     elif comando == "search":
         if len(sys.argv) < 5:
             print("ERRO: Faltam argumentos")
-            print("Uso: python emprego.py search LOCALIDADE EMPRESA N")
-            print("Exemplo: python emprego.py search Porto 'KCS IT' 3")
+            print("Uso: python emprego.py search LOCALIDADE EMPRESA N [FICHEIRO_CSV]")
+            print("Exemplo: python emprego.py search Porto 'KCS IT' 3 resultados.csv")
             sys.exit(1)
         try:
             localidade = sys.argv[2]
             empresa = sys.argv[3]
             n = int(sys.argv[4])
-            search(localidade, empresa, n)
+            csv_path = sys.argv[5] if len(sys.argv) >= 6 else None
+            search(localidade, empresa, n, csv_path)
         except ValueError:
             print(f"ERRO: '{sys.argv[4]}' não é um número válido")
             sys.exit(1)
@@ -320,6 +389,5 @@ if __name__ == "__main__":
     # -------------------- COMANDO DESCONHECIDO --------------------
     else:
         print(f"Comando desconhecido: {comando}")
-        print("Comandos disponíveis: top, search")
+        print("Comandos disponíveis: top, search, type, skills")
         sys.exit(1)
-
