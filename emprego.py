@@ -4,13 +4,11 @@ import sys
 import re
 import csv
 from collections import Counter   
-# ============================================================================
+
 # CONFIGURAÇÕES GLOBAIS
-# ============================================================================
 
 API_KEY = "4638754010a3f9ccfa253f46b376a643"
 BASE_URL = "https://api.itjobs.pt"
-
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -18,17 +16,14 @@ HEADERS = {
     'Accept-Language': 'pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 
-
-# ============================================================================
 # ALÍNEA A) - Listar N trabalhos mais recentes
-# ============================================================================
 
 def top(n, csv_path=None):
     """
     Lista os N trabalhos mais recentes publicados pela itjobs.pt.
     Exemplo: 
       python emprego.py top 30
-      python emprego.py top 30 resultados.csv
+      python emprego.py top 30 resultado.csv
     """
     url = f"{BASE_URL}/job/list.json"
     params = {"api_key": API_KEY, "limit": n}
@@ -61,10 +56,7 @@ def top(n, csv_path=None):
         print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
-
-# ============================================================================
 # ALÍNEA B) - Listar trabalhos part-time por empresa e localidade
-# ============================================================================
 
 def search(localidade, empresa, n, csv_path=None):
     """
@@ -139,10 +131,7 @@ def search(localidade, empresa, n, csv_path=None):
         print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
-
-# ============================================================================
 # ALÍNEA C) - Extrair regime de trabalho de um job ID
-# ============================================================================
 
 def type_job(job_id):
     """
@@ -170,23 +159,21 @@ def type_job(job_id):
             print(f"Erro da API: {data['error']}")
             sys.exit(1)
         
-        
         text_to_search = ""
         if "body" in data:
             text_to_search += data["body"].lower()
         if "title" in data:
             text_to_search += " " + data["title"].lower()
-        
-
+        # remoto
         if re.search(r'\b(100%\s*remoto|full\s*remote|fully\s*remote|remote\s*work|trabalho\s*remoto)\b', text_to_search):
             print("remote")
-        # Depois híbrido
+        # híbrido
         elif re.search(r'\b(híbrido|hibrido|hybrid|regime\s*híbrido|modelo\s*híbrido|parcialmente\s*remoto)\b', text_to_search):
             print("hybrid")
-        # Depois presencial
+        # presencial
         elif re.search(r'\b(presencial|on-?site|escritório|escritorio|no\s*local)\b', text_to_search):
             print("onsite")
-        # Se não encontrar nada
+        # se não encontrar nada
         else:
             print("unknown")
         
@@ -197,10 +184,7 @@ def type_job(job_id):
         print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
-
-# ============================================================================
 # ALÍNEA D) - Contar ocorrências de skills entre duas datas
-# ============================================================================
 
 def skills(data_inicial, data_final):
     """
@@ -209,7 +193,6 @@ def skills(data_inicial, data_final):
       python emprego.py skills 2024-01-01 2024-02-01
     Saída: [{ "skill1": 2, "skill2": 1, ... }]
     """
-
     url = f"{BASE_URL}/job/search.json"
 
     params = {
@@ -264,9 +247,7 @@ def skills(data_inicial, data_final):
         print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
-# ============================================================================
 # Alinea E): exportar lista de jobs para CSV
-# ============================================================================
 
 def clean_html(raw_html):
     """
@@ -319,10 +300,7 @@ def export_jobs_to_csv(jobs, csv_path):
     except OSError as e:
         print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
 
-
-# ============================================================================
 # MAIN - Processamento dos argumentos da linha de comando
-# ============================================================================
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
