@@ -3,7 +3,9 @@ import requests
 import sys
 import re
 import csv
-from collections import Counter   
+from collections import Counter
+from bs4 import BeautifulSoup
+
 
 # CONFIGURAÇÕES GLOBAIS
 
@@ -14,6 +16,12 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json',
     'Accept-Language': 'pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+}
+
+
+TEAMLYZER_BASE = "https://pt.teamlyzer.com"
+TEAMLYZER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; TeamlyzerScraper/1.0)"
 }
 
 # ALÍNEA A) - Listar N trabalhos mais recentes
@@ -300,7 +308,163 @@ def export_jobs_to_csv(jobs, csv_path):
     except OSError as e:
         print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
 
-# MAIN - Processamento dos argumentos da linha de comando
+
+
+
+# ============================================================
+#                   TRABALHO PRÁTICO 2 
+# ============================================================
+
+
+# ALÍNEA A) - Informações acerca da empresa que publicita o trabalho
+
+def find_teamlyzer_company_url(company_name):
+    """
+    Procura a empresa no ranking do Teamlyzer e devolve o URL da página dela.
+    """
+    ranking_url = TEAMLYZER_BASE + "/companies/ranking"
+
+    try:
+        response = requests.get(ranking_url, headers=TEAMLYZER_HEADERS, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Erro ao aceder ao Teamlyzer: {e}")
+        return None
+
+    soup = BeautifulSoup(response.text, "lxml")
+    
+    # Normalizar nome da empresa
+    company_clean = re.sub(r'[^\w\s]', '', company_name.lower().strip())
+
+    for link in soup.find_all("a", href=True):
+        if "/companies/" in link["href"] and link["href"] != "/companies/ranking":
+            texto = re.sub(r'[^\w\s]', '', link.get_text(strip=True).lower())
+            
+            
+            if company_clean in texto or texto in company_clean:
+                return TEAMLYZER_BASE + link["href"]
+
+    return None
+
+
+def scrape_teamlyzer_info(url):
+    """
+    Extrai rating, descrição, benefícios e salário médio da página da empresa.
+    NOTA: Os seletores são genéricos - deve adaptar ao HTML real do site!
+    """
+    try:
+        response = requests.get(url, headers=TEAMLYZER_HEADERS, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Erro ao fazer scraping: {e}")
+        return {
+            "teamlyzer_rating": None,
+            "teamlyzer_description": None,
+            "teamlyzer_benefits": None,
+            "teamlyzer_salary": None
+        }
+
+    soup = BeautifulSoup(response.text, "lxml")
+
+    # RATING 
+    rating = None
+    for tag in soup.find_all(text=re.compile(r'\d+[.,]\d+')):
+        match = re.search(r'(\d+)[.,](\d+)', tag)
+        if match:
+            try:
+                rating = float(f"{match.group(1)}.{match.group(2)}")
+                if 0 <= rating <= 5:
+                    break
+            except:
+                continue
+
+    # DESCRIÇÃO 
+    desc = None
+    meta_desc = soup.find("meta", {"name": "description"})
+    if meta_desc and meta_desc.get("content"):
+        desc = meta_desc["content"]
+    else:
+        first_p = soup.find("p")
+        if first_p:
+            desc = first_p.get_text(" ", strip=True)
+
+    # BENEFÍCIOS 
+    benefits = None
+    for ul in soup.find_all("ul"):
+        items = [li.get_text(" ", strip=True) for li in ul.find_all("li")]
+        if items and len(items) > 2:  
+            benefits = "; ".join(items[:5])  # Primeiros 5
+            break
+
+    # SALÁRIO 
+    salary = None
+    for tag in soup.find_all(text=re.compile(r'(salário|salary|€|\$)', re.IGNORECASE)):
+        text = tag.strip()
+        if len(text) < 200:  
+            salary = text
+            break
+
+    return {
+        "teamlyzer_rating": rating,
+        "teamlyzer_description": desc,
+        "teamlyzer_benefits": benefits,
+        "teamlyzer_salary": salary
+    }
+
+
+def get_job(job_id, csv_path=None):
+    """
+    Alínea (a) – Junta dados do itjobs + scraping Teamlyzer.
+    Exemplo: python emprego.py get 506697
+             python emprego.py get 506697 output.csv
+    """
+    url = f"{BASE_URL}/job/get.json"
+    params = {"api_key": API_KEY, "id": job_id}
+
+    try:
+        response = requests.get(url, params=params, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        job = response.json()
+        
+        if "error" in job:
+            print(f"Erro da API: {job['error']}")
+            return
+            
+    except requests.RequestException as e:
+        print(f"Erro ao obter job da API: {e}")
+        return
+    except json.JSONDecodeError:
+        print("Erro: Resposta inválida da API")
+        return
+
+    # Nome da empresa
+    company = job.get("company", {}).get("name")
+    if not company:
+        print("O job não tem empresa associada.")
+        print(json.dumps(job, indent=2, ensure_ascii=False))
+        return
+
+    # URL da empresa no Teamlyzer
+    url_empresa = find_teamlyzer_company_url(company)
+
+    if not url_empresa:
+        print(f"Empresa '{company}' não encontrada no Teamlyzer.")
+        job.update({
+            "teamlyzer_rating": None,
+            "teamlyzer_description": None,
+            "teamlyzer_benefits": None,
+            "teamlyzer_salary": None
+        })
+    else:
+        # Extrair informação da empresa
+        extra = scrape_teamlyzer_info(url_empresa)
+        job.update(extra)
+
+    # Imprimir JSON 
+    print(json.dumps(job, indent=2, ensure_ascii=False))
+    
+
+# MAIN
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -309,9 +473,11 @@ if __name__ == "__main__":
         print("  python emprego.py search LOCALIDADE EMPRESA N [FICHEIRO_CSV]")
         print("  python emprego.py type JOB_ID")
         print("  python emprego.py skills dataInicial dataFinal")
+        print("  python emprego.py get JOB_ID")
         sys.exit(1)
-    
+
     comando = sys.argv[1]
+
     
     # -------------------- COMANDO: top --------------------
     if comando == "top":
@@ -362,6 +528,14 @@ if __name__ == "__main__":
         data_inicial = sys.argv[2]
         data_final = sys.argv[3]
         skills(data_inicial, data_final)
+    
+        # -------------------- TP2: comando get --------------------
+    elif comando == "get":
+        if len(sys.argv) < 3:
+            print("Uso: python emprego.py get JOB_ID")
+            sys.exit(1)
+        job_id = sys.argv[2]
+        get_job(job_id)
 
     
     # -------------------- COMANDO DESCONHECIDO --------------------
