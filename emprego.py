@@ -108,7 +108,7 @@ def search(localidade, empresa, n, csv_path=None):
                         location_match = True
                         break
             
-            # Se Ã© part time
+            # Se são part time
             is_part_time = False
             if "types" in job and job["types"]:
                 for job_type in job["types"]:
@@ -415,8 +415,9 @@ def scrape_teamlyzer_info(url):
 def get_job(job_id, csv_path=None):
     """
     Alínea (a) – Junta dados do itjobs + scraping Teamlyzer.
-    Exemplo: python emprego.py get 506697
-             python emprego.py get 506697 output.csv
+    Exemplo:
+      python emprego.py get 506697
+      python emprego.py get 506697 output.csv   # exporta para CSV
     """
     url = f"{BASE_URL}/job/get.json"
     params = {"api_key": API_KEY, "id": job_id}
@@ -460,8 +461,46 @@ def get_job(job_id, csv_path=None):
         extra = scrape_teamlyzer_info(url_empresa)
         job.update(extra)
 
-    # Imprimir JSON 
+    # Imprimir JSON no ecrã
     print(json.dumps(job, indent=2, ensure_ascii=False))
+
+    # Exportar para CSV se o utilizador passou um caminho
+    if csv_path:
+        # Campos "relevantes" que vou exportar
+        fieldnames = [
+            "job_id",
+            "titulo",
+            "empresa",
+            "localizacao",
+            "data_publicacao",
+            "teamlyzer_rating",
+            "teamlyzer_salary",
+            "teamlyzer_benefits",
+            "teamlyzer_description",
+        ]
+
+        # Localizações num só campo
+        locs = job.get("locations", []) or []
+        localizacao = ", ".join(loc.get("name", "") for loc in locs) or "Não especificado"
+
+        try:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerow({
+                    "job_id": job.get("id"),
+                    "titulo": job.get("title"),
+                    "empresa": company,
+                    "localizacao": localizacao,
+                    "data_publicacao": job.get("publishedAt"),
+                    "teamlyzer_rating": job.get("teamlyzer_rating"),
+                    "teamlyzer_salary": job.get("teamlyzer_salary"),
+                    "teamlyzer_benefits": job.get("teamlyzer_benefits"),
+                    "teamlyzer_description": job.get("teamlyzer_description"),
+                })
+            print(f"CSV criado com sucesso: {csv_path}")
+        except OSError as e:
+            print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
     
 # ALÍNEA B) - contagem de vagas por tipo/nome da posição e por região.
 
@@ -534,12 +573,13 @@ def statistics_zone(csv_path="statistics_zone.csv"):
 
 # ALÍNEA C) - Listar principais skills para um trabalho a partir do Teamlyzer
 
-def list_skills(job_title, count=1000):
+def list_skills(job_title, count=1000, csv_path=None):
     """
     Alínea (c) – Lista as principais (top 10) skills para um determinado trabalho.
-    Acede ao Teamlyzer para obter as skills mais relevantes.
-    Exemplo: python emprego.py list skills "data scientist"
-             python emprego.py list skills "python" --count 1000
+    Pode exportar para CSV se for indicado um ficheiro.
+    Exemplo:
+      python emprego.py list skills "data scientist"
+      python emprego.py list skills "data scientist" --count 500 skills.csv
     """
     # Normalizar o título do trabalho para criar a URL
     job_title_normalized = job_title.lower().strip().replace(" ", "")
@@ -552,7 +592,8 @@ def list_skills(job_title, count=1000):
         response.raise_for_status()
     except requests.RequestException as e:
         print(f"Erro ao aceder ao Teamlyzer: {e}")
-        print(json.dumps([{"skill": job_title, "count": 0}], indent=2, ensure_ascii=False))
+        result = [{"skill": job_title, "count": 0}]
+        print(json.dumps(result, indent=2, ensure_ascii=False))
         return
     
     soup = BeautifulSoup(response.text, "lxml")
@@ -602,7 +643,6 @@ def list_skills(job_title, count=1000):
     
     # Procurar apenas pelas skills válidas
     for skill in valid_skills:
-        # Usar regex para encontrar a skill como palavra completa
         pattern = r'\b' + re.escape(skill.lower()) + r'\b'
         occurrences = len(re.findall(pattern, page_text))
         if occurrences > 0:
@@ -615,11 +655,22 @@ def list_skills(job_title, count=1000):
     if not top_skills:
         result = [{"skill": job_title, "count": count}]
     else:
-        # Formatar resultado: [{"skill": "python", "count": 1000}, ...]
         result = [{"skill": skill, "count": cnt} for skill, cnt in top_skills]
     
     # Imprimir resultado em formato JSON
     print(json.dumps(result, indent=2, ensure_ascii=False))
+
+    # Exportar para CSV se o utilizador pediu
+    if csv_path:
+        try:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["skill", "count"])
+                for item in result:
+                    writer.writerow([item["skill"], item["count"]])
+            print(f"CSV criado com sucesso: {csv_path}")
+        except OSError as e:
+            print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
 
 # MAIN
 
@@ -630,7 +681,9 @@ if __name__ == "__main__":
         print("  python emprego.py search LOCALIDADE EMPRESA N [FICHEIRO_CSV]")
         print("  python emprego.py type JOB_ID")
         print("  python emprego.py skills dataInicial dataFinal")
-        print("  python emprego.py get JOB_ID")
+        print("  python emprego.py get JOB_ID [FICHEIRO_CSV]")
+        print("  python emprego.py statistics zone [FICHEIRO_CSV]")
+        print("  python emprego.py list skills JOB_TITLE [--count N] [FICHEIRO_CSV]")
         sys.exit(1)
 
     comando = sys.argv[1]
@@ -686,13 +739,15 @@ if __name__ == "__main__":
         data_final = sys.argv[3]
         skills(data_inicial, data_final)
     
+        
         # -------------------- TP2: comando get --------------------
     elif comando == "get":
         if len(sys.argv) < 3:
-            print("Uso: python emprego.py get JOB_ID")
+            print("Uso: python emprego.py get JOB_ID [FICHEIRO_CSV]")
             sys.exit(1)
         job_id = sys.argv[2]
-        get_job(job_id)
+        csv_path = sys.argv[3] if len(sys.argv) >= 4 else None
+        get_job(job_id, csv_path)
 
         # -------------------- TP2: comando statistics --------------------
     elif comando == "statistics":
@@ -716,7 +771,7 @@ if __name__ == "__main__":
     elif comando == "list":
         if len(sys.argv) < 3:
             print("ERRO: Falta o subcomando")
-            print("Uso: python emprego.py list skills JOB_TITLE [--count N]")
+            print("Uso: python emprego.py list skills JOB_TITLE [--count N] [FICHEIRO_CSV]")
             sys.exit(1)
         
         subcomando = sys.argv[2].lower()
@@ -724,29 +779,34 @@ if __name__ == "__main__":
         if subcomando == "skills":
             if len(sys.argv) < 4:
                 print("ERRO: Falta o argumento JOB_TITLE")
-                print("Uso: python emprego.py list skills JOB_TITLE [--count N]")
+                print("Uso: python emprego.py list skills JOB_TITLE [--count N] [FICHEIRO_CSV]")
                 sys.exit(1)
             
             job_title = sys.argv[3]
-            count = 1000  # Valor padrão
-            
-            # Verificar se foi fornecido o parâmetro --count
-            if len(sys.argv) >= 5 and sys.argv[4] == "--count":
-                if len(sys.argv) >= 6:
-                    try:
-                        count = int(sys.argv[5])
-                    except ValueError:
-                        print(f"ERRO: '{sys.argv[5]}' não é um número válido")
+            count = 1000  # valor padrão
+            csv_path = None
+
+            # Processar argumentos restantes: [--count N] [FICHEIRO_CSV]
+            i = 4
+            while i < len(sys.argv):
+                arg = sys.argv[i]
+                if arg == "--count":
+                    if i + 1 >= len(sys.argv):
+                        print("ERRO: Falta o valor para --count")
                         sys.exit(1)
+                    try:
+                        count = int(sys.argv[i + 1])
+                    except ValueError:
+                        print(f"ERRO: '{sys.argv[i + 1]}' não é um número válido")
+                        sys.exit(1)
+                    i += 2
+                else:
+                    # Qualquer outro argumento assumo que é o ficheiro CSV
+                    csv_path = arg
+                    i += 1
             
-            list_skills(job_title, count)
+            list_skills(job_title, count, csv_path)
         else:
             print(f"Subcomando desconhecido para 'list': {subcomando}")
-            print("Uso: python emprego.py list skills JOB_TITLE")
+            print("Uso: python emprego.py list skills JOB_TITLE [--count N] [FICHEIRO_CSV]")
             sys.exit(1)
-    
-    # -------------------- COMANDO DESCONHECIDO --------------------
-    else:
-        print(f"Comando desconhecido: {comando}")
-        print("Comandos disponíveis: top, search, type, skills, get, statistics, list")
-        sys.exit(1)
