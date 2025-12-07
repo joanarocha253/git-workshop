@@ -58,10 +58,10 @@ def top(n, csv_path=None):
             export_jobs_to_csv(jobs, csv_path)
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar à API: {e}")
+        print(f"Erro ao conectar Ã  API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA B) - Listar trabalhos part-time por empresa e localidade
@@ -108,7 +108,7 @@ def search(localidade, empresa, n, csv_path=None):
                         location_match = True
                         break
             
-            # Se é part time
+            # Se Ã© part time
             is_part_time = False
             if "types" in job and job["types"]:
                 for job_type in job["types"]:
@@ -133,17 +133,17 @@ def search(localidade, empresa, n, csv_path=None):
             export_jobs_to_csv(filtered_jobs[:n], csv_path)
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar à API: {e}")
+        print(f"Erro ao conectar Ã  API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA C) - Extrair regime de trabalho de um job ID
 
 def type_job(job_id):
     """
-    Extrai o regime de trabalho (remoto/híbrido/presencial) de um job ID.
+    Extrai o regime de trabalho (remoto/hÃ­brido/presencial) de um job ID.
     Exemplo: python emprego.py type 506697
     """
     url = f"{BASE_URL}/job/get.json"
@@ -186,26 +186,26 @@ def type_job(job_id):
             print("unknown")
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar à API: {e}")
+        print(f"Erro ao conectar Ã  API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA D) - Contar ocorrências de skills entre duas datas
 
 def skills(data_inicial, data_final):
     """
-    Conta ocorrências de skills nas descrições dos anúncios entre duas datas.
+    Conta ocorrÃªncias de skills nas descriÃ§Ãµes dos anÃºncios entre duas datas.
     Exemplo:
       python emprego.py skills 2024-01-01 2024-02-01
-    Saída: [{ "skill1": 2, "skill2": 1, ... }]
+    SaÃ­da: [{ "skill1": 2, "skill2": 1, ... }]
     """
     url = f"{BASE_URL}/job/search.json"
 
     params = {
         "api_key": API_KEY,
-        "limit": 200,               # número máximo de anúncios a analisar
+        "limit": 200,               # nÃºmero mÃ¡ximo de anÃºncios a analisar
         "published_after": data_inicial,
         "published_before": data_final,
     }
@@ -226,7 +226,7 @@ def skills(data_inicial, data_final):
 
         contagem = Counter()
 
-        # Percorrer anúncios e contar skills
+        # Percorrer anÃºncios e contar skills
         for job in jobs:
             texto = ""
             if "title" in job and job["title"]:
@@ -239,7 +239,7 @@ def skills(data_inicial, data_final):
                 if ocorrencias > 0:
                     contagem[skill] += ocorrencias
 
-        # Ordenar por número de ocorrências (decrescente)
+        # Ordenar por nÃºmero de ocorrÃªncias (decrescente)
         ordenado = contagem.most_common()
 
         # Formato pedido: [ {"skill1":2,"skill2":1,...} ]
@@ -249,10 +249,10 @@ def skills(data_inicial, data_final):
         print(json.dumps(resultado, ensure_ascii=False, indent=2))
 
     except requests.RequestException as e:
-        print(f"Erro ao conectar à API: {e}")
+        print(f"Erro ao conectar Ã  API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # Alinea E): exportar lista de jobs para CSV
@@ -647,7 +647,7 @@ if __name__ == "__main__":
             csv_path = sys.argv[3] if len(sys.argv) >= 4 else None
             top(n, csv_path)
         except ValueError:
-            print(f"ERRO: '{sys.argv[2]}' não é um número válido")
+            print(f"ERRO: '{sys.argv[2]}' nÃ£o Ã© um nÃºmero vÃ¡lido")
             sys.exit(1)
     
     # -------------------- COMANDO: search --------------------
@@ -664,7 +664,7 @@ if __name__ == "__main__":
             csv_path = sys.argv[5] if len(sys.argv) >= 6 else None
             search(localidade, empresa, n, csv_path)
         except ValueError:
-            print(f"ERRO: '{sys.argv[4]}' não é um número válido")
+            print(f"ERRO: '{sys.argv[4]}' nÃ£o Ã© um nÃºmero vÃ¡lido")
             sys.exit(1)
      
     # -------------------- COMANDO: type --------------------
