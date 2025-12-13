@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 # CONFIGURAÇÕES GLOBAIS
 
 API_KEY = "4638754010a3f9ccfa253f46b376a643"
-BASE_URL = "https://api.itjobs.pt"
+URL = "https://api.itjobs.pt"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -26,14 +26,14 @@ TEAMLYZER_HEADERS = {
 
 # ALÍNEA A) - Listar N trabalhos mais recentes
 
-def top(n, csv_path=None):
+def top(n, csv=None):
     """
     Lista os N trabalhos mais recentes publicados pela itjobs.pt.
     Exemplo: 
       python emprego.py top 30
       python emprego.py top 30 resultado.csv
     """
-    url = f"{BASE_URL}/job/list.json"
+    url = f"{URL}/job/list.json"
     params = {"api_key": API_KEY, "limit": n}
     
     try:
@@ -54,26 +54,26 @@ def top(n, csv_path=None):
         print(json.dumps(jobs, ensure_ascii=False, indent=2))
 
         # Exportar para CSV se o nome do ficheiro foi indicado
-        if csv_path:
-            export_jobs_to_csv(jobs, csv_path)
+        if csv:
+            export_jobs_to_csv(jobs, csv)
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar Ã  API: {e}")
+        print(f"Erro ao conectar API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invalida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA B) - Listar trabalhos part-time por empresa e localidade
 
-def search(localidade, empresa, n, csv_path=None):
+def search(localidade, empresa, n, csv=None):
     """
     Lista trabalhos part-time de uma empresa numa localidade.
     Exemplo: 
       python emprego.py search Porto "KCS IT" 3
       python emprego.py search Porto "KCS IT" 3 resultados.csv
     """
-    url = f"{BASE_URL}/job/search.json"
+    url = f"{URL}/job/search.json"
     
     params = {
         "api_key": API_KEY,
@@ -129,24 +129,24 @@ def search(localidade, empresa, n, csv_path=None):
             print(json.dumps(filtered_jobs[:n], ensure_ascii=False, indent=2))
 
         # Exportar para CSV se o nome do ficheiro foi indicado
-        if csv_path and filtered_jobs:
-            export_jobs_to_csv(filtered_jobs[:n], csv_path)
+        if csv and filtered_jobs:
+            export_jobs_to_csv(filtered_jobs[:n], csv)
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar Ã  API: {e}")
+        print(f"Erro ao conectar a API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invalida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA C) - Extrair regime de trabalho de um job ID
 
 def type_job(job_id):
     """
-    Extrai o regime de trabalho (remoto/hÃ­brido/presencial) de um job ID.
+    Extrai o regime de trabalho (remoto/hi­brido/presencial) de um job ID.
     Exemplo: python emprego.py type 506697
     """
-    url = f"{BASE_URL}/job/get.json"
+    url = f"{URL}/job/get.json"
     
     params = {
         "api_key": API_KEY,
@@ -186,26 +186,26 @@ def type_job(job_id):
             print("unknown")
         
     except requests.RequestException as e:
-        print(f"Erro ao conectar Ã  API: {e}")
+        print(f"Erro ao conectar a API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta inválida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # ALÍNEA D) - Contar ocorrências de skills entre duas datas
 
 def skills(data_inicial, data_final):
     """
-    Conta ocorrÃªncias de skills nas descriÃ§Ãµes dos anÃºncios entre duas datas.
+    Conta ocorrÃªncias de skills nas descrições dos anuncios entre duas datas.
     Exemplo:
       python emprego.py skills 2024-01-01 2024-02-01
-    SaÃ­da: [{ "skill1": 2, "skill2": 1, ... }]
+    Saí­da: [{ "skill1": 2, "skill2": 1, ... }]
     """
-    url = f"{BASE_URL}/job/search.json"
+    url = f"{URL}/job/search.json"
 
     params = {
         "api_key": API_KEY,
-        "limit": 200,               # nÃºmero mÃ¡ximo de anÃºncios a analisar
+        "limit": 200,               #numero max de anuncios a analisar
         "published_after": data_inicial,
         "published_before": data_final,
     }
@@ -239,7 +239,7 @@ def skills(data_inicial, data_final):
                 if ocorrencias > 0:
                     contagem[skill] += ocorrencias
 
-        # Ordenar por nÃºmero de ocorrÃªncias (decrescente)
+        # Ordenar por num de ocorrencias (decrescente)
         ordenado = contagem.most_common()
 
         # Formato pedido: [ {"skill1":2,"skill2":1,...} ]
@@ -249,10 +249,10 @@ def skills(data_inicial, data_final):
         print(json.dumps(resultado, ensure_ascii=False, indent=2))
 
     except requests.RequestException as e:
-        print(f"Erro ao conectar Ã  API: {e}")
+        print(f"Erro ao conectar a  API: {e}")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erro: Resposta invÃ¡lida da API (Status: {response.status_code})")
+        print(f"Erro: Resposta invalida da API (Status: {response.status_code})")
         sys.exit(1)
 
 # Alinea E): exportar lista de jobs para CSV
@@ -264,7 +264,7 @@ def clean_html(raw_html):
     clean = re.compile('<.*?>')
     return re.sub(clean, '', raw_html).strip()
 
-def export_jobs_to_csv(jobs, csv_path):
+def export_jobs_to_csv(jobs, csv):
     """
     Exporta uma lista de anúncios para CSV com os campos:
     titulo; empresa; descricao; data_publicacao; salario; localizacao
@@ -279,7 +279,7 @@ def export_jobs_to_csv(jobs, csv_path):
     ]
 
     try:
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        with open(csv, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -303,10 +303,10 @@ def export_jobs_to_csv(jobs, csv_path):
                     "localizacao": localizacao,
                 })
 
-        print(f"CSV criado com sucesso: {csv_path}")
+        print(f"CSV criado com sucesso: {csv}")
 
     except OSError as e:
-        print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
+        print(f"Erro ao escrever o ficheiro CSV '{csv}': {e}")
 
 
 
@@ -412,14 +412,14 @@ def scrape_teamlyzer_info(url):
     }
 
 
-def get_job(job_id, csv_path=None):
+def get_job(job_id, csv=None):
     """
     Alínea (a) – Junta dados do itjobs + scraping Teamlyzer.
     Exemplo:
       python emprego.py get 506697
       python emprego.py get 506697 output.csv   # exporta para CSV
     """
-    url = f"{BASE_URL}/job/get.json"
+    url = f"{URL}/job/get.json"
     params = {"api_key": API_KEY, "id": job_id}
 
     try:
@@ -465,7 +465,7 @@ def get_job(job_id, csv_path=None):
     print(json.dumps(job, indent=2, ensure_ascii=False))
 
     # Exportar para CSV se o utilizador passou um caminho
-    if csv_path:
+    if csv:
         # Campos "relevantes" que vou exportar
         fieldnames = [
             "job_id",
@@ -484,7 +484,7 @@ def get_job(job_id, csv_path=None):
         localizacao = ", ".join(loc.get("name", "") for loc in locs) or "Não especificado"
 
         try:
-            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            with open(csv, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerow({
@@ -498,15 +498,15 @@ def get_job(job_id, csv_path=None):
                     "teamlyzer_benefits": job.get("teamlyzer_benefits"),
                     "teamlyzer_description": job.get("teamlyzer_description"),
                 })
-            print(f"CSV criado com sucesso: {csv_path}")
+            print(f"CSV criado com sucesso: {csv}")
         except OSError as e:
-            print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
+            print(f"Erro ao escrever o ficheiro CSV '{csv}': {e}")
     
 # ALÍNEA B) - contagem de vagas por tipo/nome da posição e por região.
 
-def statistics_zone(csv_path="statistics_zone.csv"):
+def statistics_zone(csv="statistics_zone.csv"):
    
-    url = f"{BASE_URL}/job/list.json"
+    url = f"{URL}/job/list.json"
     params = {
         "api_key": API_KEY,
         "limit": 200   
@@ -552,7 +552,7 @@ def statistics_zone(csv_path="statistics_zone.csv"):
 
         # --- Escrita do CSV ---
         try:
-            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            with open(csv, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(["Zona", "Tipo de Trabalho", "Nº de vagas"])
 
@@ -562,7 +562,7 @@ def statistics_zone(csv_path="statistics_zone.csv"):
             print("Ficheiro de exportação criado com sucesso.")
 
         except OSError as e:
-            print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
+            print(f"Erro ao escrever o ficheiro CSV '{csv}': {e}")
 
     except requests.RequestException as e:
         print(f"Erro ao conectar à API: {e}")
@@ -573,7 +573,7 @@ def statistics_zone(csv_path="statistics_zone.csv"):
 
 # ALÍNEA C) - Listar principais skills para um trabalho a partir do Teamlyzer
 
-def list_skills(job_title, count=1000, csv_path=None):
+def list_skills(job_title, count=1000, csv=None):
     """
     Alínea (c) – Lista as principais (top 10) skills para um determinado trabalho.
     Pode exportar para CSV se for indicado um ficheiro.
@@ -661,16 +661,16 @@ def list_skills(job_title, count=1000, csv_path=None):
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
     # Exportar para CSV se o utilizador pediu
-    if csv_path:
+    if csv:
         try:
-            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            with open(csv, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(["skill", "count"])
                 for item in result:
                     writer.writerow([item["skill"], item["count"]])
-            print(f"CSV criado com sucesso: {csv_path}")
+            print(f"CSV criado com sucesso: {csv}")
         except OSError as e:
-            print(f"Erro ao escrever o ficheiro CSV '{csv_path}': {e}")
+            print(f"Erro ao escrever o ficheiro CSV '{csv}': {e}")
 
 # MAIN
 
@@ -697,10 +697,10 @@ if __name__ == "__main__":
             sys.exit(1)
         try:
             n = int(sys.argv[2])
-            csv_path = sys.argv[3] if len(sys.argv) >= 4 else None
-            top(n, csv_path)
+            csv = sys.argv[3] if len(sys.argv) >= 4 else None
+            top(n, csv)
         except ValueError:
-            print(f"ERRO: '{sys.argv[2]}' nÃ£o Ã© um nÃºmero vÃ¡lido")
+            print(f"ERRO: '{sys.argv[2]}' não é um número válido")
             sys.exit(1)
     
     # -------------------- COMANDO: search --------------------
@@ -714,10 +714,10 @@ if __name__ == "__main__":
             localidade = sys.argv[2]
             empresa = sys.argv[3]
             n = int(sys.argv[4])
-            csv_path = sys.argv[5] if len(sys.argv) >= 6 else None
-            search(localidade, empresa, n, csv_path)
+            csv = sys.argv[5] if len(sys.argv) >= 6 else None
+            search(localidade, empresa, n, csv)
         except ValueError:
-            print(f"ERRO: '{sys.argv[4]}' nÃ£o Ã© um nÃºmero vÃ¡lido")
+            print(f"ERRO: '{sys.argv[4]}' não é um número válido")
             sys.exit(1)
      
     # -------------------- COMANDO: type --------------------
@@ -746,8 +746,8 @@ if __name__ == "__main__":
             print("Uso: python emprego.py get JOB_ID [FICHEIRO_CSV]")
             sys.exit(1)
         job_id = sys.argv[2]
-        csv_path = sys.argv[3] if len(sys.argv) >= 4 else None
-        get_job(job_id, csv_path)
+        csv = sys.argv[3] if len(sys.argv) >= 4 else None
+        get_job(job_id, csv)
 
         # -------------------- TP2: comando statistics --------------------
     elif comando == "statistics":
@@ -760,8 +760,8 @@ if __name__ == "__main__":
 
         if subcomando == "zone":
             
-            csv_path = sys.argv[3] if len(sys.argv) >= 4 else "statistics_zone.csv"
-            statistics_zone(csv_path)
+            csv = sys.argv[3] if len(sys.argv) >= 4 else "statistics_zone.csv"
+            statistics_zone(csv)
         else:
             print(f"Subcomando desconhecido para 'statistics': {subcomando}")
             print("Uso: python emprego.py statistics zone")
@@ -784,7 +784,7 @@ if __name__ == "__main__":
             
             job_title = sys.argv[3]
             count = 1000  # valor padrão
-            csv_path = None
+            csv = None
 
             # Processar argumentos restantes: [--count N] [FICHEIRO_CSV]
             i = 4
@@ -802,10 +802,10 @@ if __name__ == "__main__":
                     i += 2
                 else:
                     # Qualquer outro argumento assumo que é o ficheiro CSV
-                    csv_path = arg
+                    csv = arg
                     i += 1
             
-            list_skills(job_title, count, csv_path)
+            list_skills(job_title, count, csv)
         else:
             print(f"Subcomando desconhecido para 'list': {subcomando}")
             print("Uso: python emprego.py list skills JOB_TITLE [--count N] [FICHEIRO_CSV]")
